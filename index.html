@@ -355,6 +355,27 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .emoji-btn.selected{border-color:rgba(139,127,255,.5);background:rgba(139,127,255,.12);}
 .setup-avatar-preview{width:80px;height:80px;border-radius:24px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:2.6rem;border:1px solid var(--glass-border);}
 
+/* ── AVATAR UPLOAD ── */
+.avatar-upload-wrap{position:relative;width:90px;height:90px;margin:0 auto 20px;cursor:pointer;}
+.avatar-img{width:90px;height:90px;border-radius:20px;object-fit:cover;border:2px solid var(--glass-border);box-shadow:0 8px 32px rgba(0,0,0,.4);display:block;}
+.avatar-emoji-fallback{width:90px;height:90px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:2.8rem;border:2px solid var(--glass-border);box-shadow:0 8px 32px rgba(0,0,0,.4);}
+.avatar-upload-btn{position:absolute;bottom:-6px;right:-6px;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#8b7fff,#c77dff);border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:.8rem;cursor:pointer;box-shadow:0 2px 8px rgba(139,127,255,.4);}
+.avatar-upload-input{display:none;}
+
+/* Avatar in drawer — clickable */
+.drawer-avatar-wrap{position:relative;cursor:pointer;flex-shrink:0;}
+.drawer-avatar-wrap .avatar-upload-btn{width:20px;height:20px;font-size:.6rem;bottom:-4px;right:-4px;border-width:1.5px;}
+.drawer-avatar-lg{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;overflow:hidden;}
+.drawer-avatar-lg img{width:100%;height:100%;object-fit:cover;border-radius:12px;}
+
+/* Avatar in leaderboard & chat */
+.lb-avatar img,.chat-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit;}
+
+/* Upload progress */
+.avatar-uploading{opacity:.5;pointer-events:none;}
+.avatar-upload-spinner{position:absolute;inset:0;border-radius:20px;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;}
+.avatar-upload-spinner::after{content:'';width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;}
+
 /* Template grid */
 .template-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding-bottom:4px;}
 .template-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:14px;padding:14px 12px;cursor:pointer;transition:all .15s;text-align:center;}
@@ -433,7 +454,14 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
     <div class="setup-wrap">
       <div style="font-size:1.5rem;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;" data-i18n="almost_done">Fast fertig! 🎉</div>
       <div style="font-size:.72rem;color:var(--text-muted);font-family:'DM Mono',monospace;margin-bottom:28px;line-height:1.6;" data-i18n="choose_avatar">Wähle deinen Avatar und eine Profilfarbe</div>
-      <div class="setup-avatar-preview" id="setupAvatarPreview">😊</div>
+
+      <!-- Avatar Upload -->
+      <div class="avatar-upload-wrap" onclick="document.getElementById('setupAvatarInput').click()" id="setupAvatarWrap">
+        <div class="avatar-emoji-fallback" id="setupAvatarPreview" style="background:rgba(139,127,255,.15);">😊</div>
+        <div class="avatar-upload-btn">📷</div>
+        <input type="file" id="setupAvatarInput" class="avatar-upload-input" accept="image/*" capture="user" onchange="handleSetupAvatarChange(event)">
+      </div>
+      <div style="font-size:.6rem;color:var(--text-dim);font-family:'DM Mono',monospace;text-align:center;margin-bottom:20px;">Tippe um Foto hinzuzufügen</div>
       <label class="form-label" data-i18n="avatar">Avatar</label>
       <div class="emoji-grid" id="setupEmojiGrid" style="margin-bottom:20px;"></div>
       <label class="form-label" data-i18n="profile_color">Profilfarbe</label>
@@ -485,7 +513,11 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-user-header">
-    <div class="drawer-avatar-lg" id="drawerAvatar">😊</div>
+    <div class="drawer-avatar-wrap" onclick="document.getElementById('drawerAvatarInput').click()">
+        <div class="drawer-avatar-lg" id="drawerAvatar">😊</div>
+        <div class="avatar-upload-btn">📷</div>
+        <input type="file" id="drawerAvatarInput" class="avatar-upload-input" accept="image/*" capture="user" onchange="handleDrawerAvatarChange(event)">
+      </div>
     <div class="drawer-user-info">
       <div class="drawer-user-name" id="drawerName">Name</div>
       <div class="drawer-user-email" id="drawerEmail">email</div>
@@ -750,28 +782,62 @@ function showAuthError(msg){const el=document.getElementById('authError');el.tex
 // SETUP
 // ══════════════════════════════════════════════
 function showSetupScreen(){
-  setupEmoji='😊';setupColor=PCOLORS[0];
+  setupEmoji='😊';setupColor=PCOLORS[0];setupAvatarFile=null;
   buildSetupEmoji();buildSetupColors();
-  document.getElementById('setupAvatarPreview').textContent=setupEmoji;
-  document.getElementById('setupAvatarPreview').style.background=setupColor+'22';
+  const prev=document.getElementById('setupAvatarPreview');
+  prev.textContent=setupEmoji;
+  prev.style.background=setupColor+'22';
+  // Reset to emoji fallback div
+  const wrap=document.getElementById('setupAvatarWrap');
+  if(wrap){const img=wrap.querySelector('img');if(img)img.remove();}
   showScreen('setupScreen');applyLang();
 }
 
 function buildSetupEmoji(){
   const el=document.getElementById('setupEmojiGrid');el.innerHTML='';
-  EMOJIS.forEach(e=>{const b=document.createElement('button');b.className='emoji-btn'+(e===setupEmoji?' selected':'');b.textContent=e;b.onclick=()=>{el.querySelectorAll('.emoji-btn').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');setupEmoji=e;document.getElementById('setupAvatarPreview').textContent=e;};el.appendChild(b);});
+  EMOJIS.forEach(e=>{const b=document.createElement('button');b.className='emoji-btn'+(e===setupEmoji?' selected':'');b.textContent=e;b.onclick=()=>{el.querySelectorAll('.emoji-btn').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');setupEmoji=e;const prev=document.getElementById('setupAvatarPreview');if(prev&&prev.tagName!=='IMG'){prev.textContent=e;}};el.appendChild(b);});
 }
 
 function buildSetupColors(){
   const el=document.getElementById('setupColorGrid');el.innerHTML='';
-  PCOLORS.forEach(c=>{const sw=document.createElement('div');sw.className='color-swatch'+(c===setupColor?' selected':'');sw.style.background=c;sw.onclick=()=>{el.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));sw.classList.add('selected');setupColor=c;document.getElementById('setupAvatarPreview').style.background=c+'22';};el.appendChild(sw);});
+  PCOLORS.forEach(c=>{const sw=document.createElement('div');sw.className='color-swatch'+(c===setupColor?' selected':'');sw.style.background=c;sw.onclick=()=>{el.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));sw.classList.add('selected');setupColor=c;const prev=document.getElementById('setupAvatarPreview');if(prev&&prev.tagName!=='IMG')prev.style.background=c+'22';};el.appendChild(sw);});
+}
+
+function handleSetupAvatarChange(event){
+  const file=event.target.files?.[0];if(!file)return;
+  if(file.size>5*1024*1024){showToast('Bild zu groß (max 5MB)','error');return;}
+  setupAvatarFile=file;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wrap=document.getElementById('setupAvatarWrap');
+    let preview=document.getElementById('setupAvatarPreview');
+    // Replace emoji div with img
+    if(preview.tagName!=='IMG'){
+      const img=document.createElement('img');
+      img.id='setupAvatarPreview';
+      img.className='avatar-img';
+      img.style.width='90px';img.style.height='90px';
+      preview.replaceWith(img);
+      preview=img;
+    }
+    preview.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 async function saveSetup(){
+  const btn=document.querySelector('#setupScreen .btn-primary');
+  btn.disabled=true;btn.textContent='Speichere…';
   try{
-    await sb.from('profiles').update({emoji:setupEmoji,color:setupColor}).eq('id',currentUser.id);
+    let avatarUrl=null;
+    if(setupAvatarFile){
+      avatarUrl=await uploadAvatar(setupAvatarFile,currentUser.id);
+    }
+    const update={emoji:setupEmoji,color:setupColor};
+    if(avatarUrl)update.avatar_url=avatarUrl;
+    await sb.from('profiles').update(update).eq('id',currentUser.id);
     await loadUserData(currentUser);
-  }catch(e){showToast('Fehler','error');}
+  }catch(e){showToast('Fehler: '+e.message,'error');btn.disabled=false;btn.textContent=t('lets_go');}
 }
 
 // ══════════════════════════════════════════════
@@ -807,10 +873,81 @@ async function logout(){
 
 function updateDrawerUser(){
   if(!userProfile)return;
-  document.getElementById('drawerAvatar').textContent=userProfile.emoji||'😊';
-  document.getElementById('drawerAvatar').style.background=(userProfile.color||'#7c6aff')+'18';
+  const avatar=document.getElementById('drawerAvatar');
+  if(userProfile.avatar_url){
+    // Show image
+    avatar.innerHTML=`<img src="${userProfile.avatar_url}?t=${Date.now()}" alt="Avatar" style="width:46px;height:46px;object-fit:cover;border-radius:12px;">`;
+    avatar.style.background='transparent';
+    avatar.style.fontSize='0';
+  } else {
+    avatar.innerHTML=userProfile.emoji||'😊';
+    avatar.style.background=(userProfile.color||'#7c6aff')+'18';
+    avatar.style.fontSize='1.5rem';
+  }
   document.getElementById('drawerName').textContent=userProfile.name||'';
   document.getElementById('drawerEmail').textContent=currentUser?.email||'';
+}
+
+// ══════════════════════════════════════════════
+// AVATAR UPLOAD
+// ══════════════════════════════════════════════
+let setupAvatarFile=null;
+
+async function uploadAvatar(file, userId){
+  // Compress image before upload
+  const compressed=await compressImage(file,400);
+  const{data,error}=await sb.storage.from('avatars').upload(userId,compressed,{
+    upsert:true,
+    contentType:'image/jpeg',
+    cacheControl:'3600'
+  });
+  if(error)throw error;
+  const{data:urlData}=sb.storage.from('avatars').getPublicUrl(userId);
+  return urlData.publicUrl;
+}
+
+function compressImage(file,maxSize){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        let w=img.width,h=img.height;
+        if(w>h){if(w>maxSize){h=h*(maxSize/w);w=maxSize;}}
+        else{if(h>maxSize){w=w*(maxSize/h);h=maxSize;}}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        canvas.toBlob(blob=>resolve(blob),'image/jpeg',0.85);
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleDrawerAvatarChange(event){
+  const file=event.target.files?.[0];if(!file)return;
+  if(file.size>5*1024*1024){showToast('Bild zu groß (max 5MB)','error');return;}
+  const avatar=document.getElementById('drawerAvatar');
+  avatar.innerHTML=`<div style="width:46px;height:46px;border-radius:12px;background:var(--glass);display:flex;align-items:center;justify-content:center;"><div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;"></div></div>`;
+  avatar.style.background='transparent';avatar.style.fontSize='0';
+  try{
+    const url=await uploadAvatar(file,currentUser.id);
+    await sb.from('profiles').update({avatar_url:url}).eq('id',currentUser.id);
+    if(userProfile)userProfile.avatar_url=url;
+    updateDrawerUser();
+    showToast('Profilbild aktualisiert ✓','success');
+  }catch(e){showToast('Upload fehlgeschlagen','error');updateDrawerUser();}
+}
+
+// Helper: render avatar HTML (img or emoji)
+function avatarHtml(prof,size=38,radius=12){
+  const bg=(prof?.color||'#7c6aff')+'18';
+  if(prof?.avatar_url){
+    return `<div style="width:${size}px;height:${size}px;border-radius:${radius}px;overflow:hidden;flex-shrink:0;"><img src="${prof.avatar_url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></div>`;
+  }
+  return `<div style="width:${size}px;height:${size}px;border-radius:${radius}px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:${size*0.45}px;flex-shrink:0;">${prof?.emoji||'😊'}</div>`;
 }
 
 // ══════════════════════════════════════════════
@@ -1134,11 +1271,11 @@ async function renderLb(){
     const now=new Date();
     const monthStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
     const entries=await Promise.all((members||[]).map(async m=>{
-      const {data:prof}=await sb.from('profiles').select('name,emoji,color').eq('id',m.user_id).single();
+      const {data:prof}=await sb.from('profiles').select('name,emoji,color,avatar_url').eq('id',m.user_id).single();
       const {data:mHabits}=await sb.from('habits').select('id').eq('user_id',m.user_id).ilike('name',group.habit_name);
       let score=0;
       if(mHabits?.length){const ids=mHabits.map(h=>h.id);const {count}=await sb.from('habit_log').select('id',{count:'exact',head:true}).in('habit_id',ids).gte('date',monthStart);score=count||0;}
-      return{userId:m.user_id,name:prof?.name||'?',emoji:prof?.emoji||'😊',color:prof?.color||'#7c6aff',score};
+      return{userId:m.user_id,name:prof?.name||'?',emoji:prof?.emoji||'😊',color:prof?.color||'#7c6aff',avatar_url:prof?.avatar_url||null,score};
     }));
     const sorted=[...entries].sort((a,b)=>b.score-a.score);
     const M=months();
@@ -1146,7 +1283,7 @@ async function renderLb(){
       <div class="lb-group-header"><div class="lb-group-icon">🏆</div><div class="lb-group-info"><div class="lb-group-name">${group.habit_name}</div><div class="lb-group-code">Code: ${stored.code}</div></div><button class="lb-group-leave" onclick="lbLeave()">${t('leave')||'Verlassen'}</button></div>
       <div class="lb-month-label">📅 ${M[now.getMonth()]} ${now.getFullYear()}</div>`;
     if(!sorted.length){html+=`<div class="lb-empty"><div class="lb-empty-icon">👥</div><div class="lb-empty-text">Noch keine Mitglieder.<br>Code: <strong>${stored.code}</strong></div></div>`;}
-    else{sorted.forEach((m,i)=>{const isMe=m.userId===currentUser?.id;const rankLabel=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;const rankClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';html+=`<div class="lb-row${isMe?' me':''}"><div class="lb-rank ${rankClass}">${rankLabel}</div><div class="lb-avatar" style="background:${m.color}18;">${m.emoji}</div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:4px;"><div class="lb-name">${m.name}</div>${isMe?'<span class="lb-you">DU</span>':''}</div></div><div class="lb-score"><div class="lb-score-val" style="color:${i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--text)'}">${m.score}</div><div class="lb-score-lbl">Einträge</div></div></div>`;});}
+    else{sorted.forEach((m,i)=>{const isMe=m.userId===currentUser?.id;const rankLabel=i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;const rankClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';html+=`<div class="lb-row${isMe?' me':''}"><div class="lb-rank ${rankClass}">${rankLabel}</div>${avatarHtml(m,38,12)}<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:4px;"><div class="lb-name">${m.name}</div>${isMe?'<span class="lb-you">DU</span>':''}</div></div><div class="lb-score"><div class="lb-score-val" style="color:${i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--text)'}">${m.score}</div><div class="lb-score-lbl">Einträge</div></div></div>`;});}
     html+=`</div><button class="lb-sync-btn" onclick="renderLb()">↻ Aktualisieren</button>
     <div style="font-family:'DM Mono',monospace;font-size:.56rem;color:var(--text-dim);text-align:center;padding:4px 0;">Code: <strong style="color:var(--text-muted);">${stored.code}</strong></div></div>`;
     area.innerHTML=html;
@@ -1224,7 +1361,7 @@ async function renderChat(){
   const userIds=[...new Set((msgs||[]).map(m=>m.user_id))];
   const profileMap={};
   if(userIds.length){
-    const {data:profs}=await sb.from('profiles').select('id,name,emoji,color').in('id',userIds);
+    const {data:profs}=await sb.from('profiles').select('id,name,emoji,color,avatar_url').in('id',userIds);
     (profs||[]).forEach(p=>{profileMap[p.id]=p;});
   }
 
@@ -1238,8 +1375,8 @@ async function renderChat(){
         const isMe=m.user_id===currentUser?.id;
         const time=new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
         return `<div class="chat-msg${isMe?' mine':''}">
-          <div class="chat-avatar" style="background:${p.color}18;">${p.emoji}</div>
-          <div><div class="chat-bubble">${isMe?'':`<div class="chat-name">${p.name}</div>`}<div class="chat-text">${escapeHtml(m.message)}</div><div class="chat-time">${time}</div></div></div>
+          ${avatarHtml(p,30,9)}
+          <div><div class="chat-bubble">${isMe?'':`<div class="chat-name">${p.name||'?'}</div>`}<div class="chat-text">${escapeHtml(m.message)}</div><div class="chat-time">${time}</div></div></div>
         </div>`;
       }).join('')}
     </div>
@@ -1263,15 +1400,15 @@ async function renderChat(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'group_messages',filter:`group_id=eq.${groupId}`},
     async payload=>{
       const m=payload.new;
-      const {data:p}=await sb.from('profiles').select('name,emoji,color').eq('id',m.user_id).single();
-      const prof=p||{emoji:'😊',color:'#7c6aff',name:'?'};
+      const {data:p}=await sb.from('profiles').select('name,emoji,color,avatar_url').eq('id',m.user_id).single();
+      const prof=p||{emoji:'😊',color:'#7c6aff',name:'?',avatar_url:null};
       const isMe=m.user_id===currentUser?.id;
       const time=new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
       const cm=document.getElementById('chatMessages');
       if(cm){
         const div=document.createElement('div');
         div.className=`chat-msg${isMe?' mine':''}`;
-        div.innerHTML=`<div class="chat-avatar" style="background:${prof.color}18;">${prof.emoji}</div><div><div class="chat-bubble">${isMe?'':`<div class="chat-name">${prof.name}</div>`}<div class="chat-text">${escapeHtml(m.message)}</div><div class="chat-time">${time}</div></div></div>`;
+        div.innerHTML=`${avatarHtml(prof,30,9)}<div><div class="chat-bubble">${isMe?'':`<div class="chat-name">${prof.name}</div>`}<div class="chat-text">${escapeHtml(m.message)}</div><div class="chat-time">${time}</div></div></div>`;
         cm.appendChild(div);
         cm.scrollTop=cm.scrollHeight;
       }
@@ -1329,6 +1466,12 @@ function renderSettings(){
         <div class="settings-icon">📄</div>
         <div class="settings-label">${t('export_pdf')}</div>
         <div class="settings-arrow">›</div>
+      </div>
+      <div class="settings-row" onclick="document.getElementById('settingsAvatarInput').click()">
+        <div class="settings-icon">🖼️</div>
+        <div class="settings-label">Profilbild ändern</div>
+        <div class="settings-arrow">›</div>
+        <input type="file" id="settingsAvatarInput" class="avatar-upload-input" accept="image/*" capture="user" onchange="handleDrawerAvatarChange(event)">
       </div>
       <div class="settings-row" onclick="logout()" style="color:rgba(255,100,100,.7);">
         <div class="settings-icon">🚪</div>
